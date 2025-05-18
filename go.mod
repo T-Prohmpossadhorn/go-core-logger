@@ -3,12 +3,15 @@ module github.com/T-Prohmpossadhorn/go-core-logger
 go 1.24.2
 
 require (
+	github.com/T-Prohmpossadhorn/go-core-config v0.0.0
 	github.com/stretchr/testify v1.10.0
 	go.opentelemetry.io/otel/exporters/stdout/stdouttrace v1.35.0
 	go.opentelemetry.io/otel/sdk v1.35.0
 	go.opentelemetry.io/otel/trace v1.35.0
 	go.uber.org/zap v1.27.0
 )
+
+replace github.com/T-Prohmpossadhorn/go-core-config => ./go-core-config
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect

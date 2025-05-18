@@ -196,7 +196,9 @@ func main() {
 ```
 
 ## Configuration
-The `logger` package is configured via the `LoggerConfig` struct:
+The `logger` package is configured via the `LoggerConfig` struct. In addition to
+creating the struct manually, you can load it from a JSON file using
+`InitFromFile`:
 
 ```go
 type LoggerConfig struct {
@@ -204,6 +206,15 @@ type LoggerConfig struct {
     Output     string // Output destination: "console" or "file"
     FilePath   string // File path for file output (required if Output="file")
     JSONFormat bool   // Output format: true for JSON, false for Zap console format
+}
+```
+
+Load configuration from a file:
+
+```go
+cfg := LoggerConfig{}
+if err := logger.InitFromFile("config.json"); err != nil {
+    panic(err)
 }
 ```
 
