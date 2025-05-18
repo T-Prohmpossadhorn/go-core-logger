@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 
-	"github.com/T-Prohmpossadhorn/go-core/logger"
+	logger "github.com/T-Prohmpossadhorn/go-core-logger"
 )
 
 func main() {
