@@ -6,6 +6,7 @@ import (
 	"os"
 	"sync"
 
+	config "github.com/T-Prohmpossadhorn/go-core-config"
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -60,6 +61,17 @@ var (
 	globalLogger *zap.Logger
 	loggerMu     sync.RWMutex
 )
+
+// InitFromFile initializes the logger using a configuration file parsed via
+// github.com/T-Prohmpossadhorn/go-core-config. The file should contain a JSON
+// representation of LoggerConfig.
+func InitFromFile(path string) error {
+	cfg, err := config.New[LoggerConfig](path)
+	if err != nil {
+		return err
+	}
+	return InitWithConfig(*cfg)
+}
 
 // Init initializes the global logger with default settings (info level, console output, JSON format).
 func Init() error {
@@ -138,114 +150,83 @@ func Sync() error {
 	return globalLogger.Sync()
 }
 
+func logWithContext(level zapcore.Level, ctx context.Context, msg string, fields ...interface{}) error {
+	loggerMu.RLock()
+	defer loggerMu.RUnlock()
+	if globalLogger == nil {
+		return fmt.Errorf("logger not initialized")
+	}
+	zapFields := extractTraceFields(ctx)
+	for _, f := range fields {
+		if field, ok := f.(Field); ok {
+			zapFields = append(zapFields, fieldToZap(field))
+		}
+	}
+	switch level {
+	case zapcore.DebugLevel:
+		globalLogger.Debug(msg, zapFields...)
+	case zapcore.InfoLevel:
+		globalLogger.Info(msg, zapFields...)
+	case zapcore.WarnLevel:
+		globalLogger.Warn(msg, zapFields...)
+	case zapcore.ErrorLevel:
+		globalLogger.Error(msg, zapFields...)
+	case zapcore.FatalLevel:
+		globalLogger.Fatal(msg, zapFields...)
+	default:
+		return fmt.Errorf("unsupported log level: %v", level)
+	}
+	return nil
+}
+
 // Debug logs a debug-level message with default context.
 func Debug(msg string, fields ...interface{}) error {
-	return DebugContext(context.Background(), msg, fields...)
+	return logWithContext(zapcore.DebugLevel, context.Background(), msg, fields...)
 }
 
 // Info logs an info-level message with default context.
 func Info(msg string, fields ...interface{}) error {
-	return InfoContext(context.Background(), msg, fields...)
+	return logWithContext(zapcore.InfoLevel, context.Background(), msg, fields...)
 }
 
 // Warn logs a warn-level message with default context.
 func Warn(msg string, fields ...interface{}) error {
-	return WarnContext(context.Background(), msg, fields...)
+	return logWithContext(zapcore.WarnLevel, context.Background(), msg, fields...)
 }
 
 // Error logs an error-level message with default context.
 func Error(msg string, fields ...interface{}) error {
-	return ErrorContext(context.Background(), msg, fields...)
+	return logWithContext(zapcore.ErrorLevel, context.Background(), msg, fields...)
 }
 
 // Fatal logs a fatal-level message with default context and exits.
 func Fatal(msg string, fields ...interface{}) error {
-	return FatalContext(context.Background(), msg, fields...)
+	return logWithContext(zapcore.FatalLevel, context.Background(), msg, fields...)
 }
 
 // DebugContext logs a debug-level message with context and fields.
 func DebugContext(ctx context.Context, msg string, fields ...interface{}) error {
-	loggerMu.RLock()
-	defer loggerMu.RUnlock()
-	if globalLogger == nil {
-		return fmt.Errorf("logger not initialized")
-	}
-	zapFields := extractTraceFields(ctx)
-	for _, f := range fields {
-		if field, ok := f.(Field); ok {
-			zapFields = append(zapFields, fieldToZap(field))
-		}
-	}
-	globalLogger.Debug(msg, zapFields...)
-	return nil
+	return logWithContext(zapcore.DebugLevel, ctx, msg, fields...)
 }
 
 // InfoContext logs an info-level message with context and fields.
 func InfoContext(ctx context.Context, msg string, fields ...interface{}) error {
-	loggerMu.RLock()
-	defer loggerMu.RUnlock()
-	if globalLogger == nil {
-		return fmt.Errorf("logger not initialized")
-	}
-	zapFields := extractTraceFields(ctx)
-	for _, f := range fields {
-		if field, ok := f.(Field); ok {
-			zapFields = append(zapFields, fieldToZap(field))
-		}
-	}
-	globalLogger.Info(msg, zapFields...)
-	return nil
+	return logWithContext(zapcore.InfoLevel, ctx, msg, fields...)
 }
 
 // WarnContext logs a warn-level message with context and fields.
 func WarnContext(ctx context.Context, msg string, fields ...interface{}) error {
-	loggerMu.RLock()
-	defer loggerMu.RUnlock()
-	if globalLogger == nil {
-		return fmt.Errorf("logger not initialized")
-	}
-	zapFields := extractTraceFields(ctx)
-	for _, f := range fields {
-		if field, ok := f.(Field); ok {
-			zapFields = append(zapFields, fieldToZap(field))
-		}
-	}
-	globalLogger.Warn(msg, zapFields...)
-	return nil
+	return logWithContext(zapcore.WarnLevel, ctx, msg, fields...)
 }
 
 // ErrorContext logs an error-level message with context and fields.
 func ErrorContext(ctx context.Context, msg string, fields ...interface{}) error {
-	loggerMu.RLock()
-	defer loggerMu.RUnlock()
-	if globalLogger == nil {
-		return fmt.Errorf("logger not initialized")
-	}
-	zapFields := extractTraceFields(ctx)
-	for _, f := range fields {
-		if field, ok := f.(Field); ok {
-			zapFields = append(zapFields, fieldToZap(field))
-		}
-	}
-	globalLogger.Error(msg, zapFields...)
-	return nil
+	return logWithContext(zapcore.ErrorLevel, ctx, msg, fields...)
 }
 
 // FatalContext logs a fatal-level message with context and fields, then exits.
 func FatalContext(ctx context.Context, msg string, fields ...interface{}) error {
-	loggerMu.RLock()
-	defer loggerMu.RUnlock()
-	if globalLogger == nil {
-		return fmt.Errorf("logger not initialized")
-	}
-	zapFields := extractTraceFields(ctx)
-	for _, f := range fields {
-		if field, ok := f.(Field); ok {
-			zapFields = append(zapFields, fieldToZap(field))
-		}
-	}
-	globalLogger.Fatal(msg, zapFields...)
-	return nil
+	return logWithContext(zapcore.FatalLevel, ctx, msg, fields...)
 }
 
 // fieldToZap converts a Field to a zap.Field.
