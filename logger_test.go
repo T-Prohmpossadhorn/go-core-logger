@@ -803,6 +803,68 @@ func TestInvalidSpanContext(t *testing.T) {
 	}
 }
 
+// TestInitFromFile verifies logger initialization from a JSON configuration file.
+func TestInitFromFile(t *testing.T) {
+	cfg := LoggerConfig{
+		Level:      "info",
+		Output:     "console",
+		JSONFormat: true,
+	}
+	data, err := json.Marshal(cfg)
+	assert.NoError(t, err)
+
+	tmpfile, err := os.CreateTemp("", "logger-config*.json")
+	assert.NoError(t, err)
+	defer os.Remove(tmpfile.Name())
+
+	err = os.WriteFile(tmpfile.Name(), data, 0o644)
+	assert.NoError(t, err)
+
+	err = InitFromFile(tmpfile.Name())
+	assert.NoError(t, err)
+
+	// Capture stdout
+	originalStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	err = Info("InitFromFile test", String("key", "value"))
+	assert.NoError(t, err)
+
+	err = Sync()
+	if err != nil {
+		t.Logf("Sync error (non-fatal): %v", err)
+	}
+
+	time.Sleep(10 * time.Millisecond)
+
+	// Read log output
+	w.Close()
+	var buf bytes.Buffer
+	_, err = buf.ReadFrom(r)
+	assert.NoError(t, err)
+	logString := buf.String()
+
+	os.Stdout = originalStdout
+
+	var logEntry map[string]interface{}
+	lines := strings.Split(strings.TrimSpace(logString), "\n")
+	for _, line := range lines {
+		if strings.Contains(line, "InitFromFile test") {
+			err := json.Unmarshal([]byte(line), &logEntry)
+			assert.NoError(t, err)
+			assert.Equal(t, "value", logEntry["key"])
+			break
+		}
+	}
+}
+
+// TestInitFromFileError ensures an error is returned when the config file cannot be read.
+func TestInitFromFileError(t *testing.T) {
+	err := InitFromFile("/nonexistent/config.json")
+	assert.Error(t, err)
+}
+
 // performTestLogging executes a set of logging operations for testing.
 func performTestLogging(t *testing.T, ctx context.Context) {
 	err := InfoContext(ctx, "Test message",
