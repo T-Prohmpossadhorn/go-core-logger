@@ -66,11 +66,15 @@ var (
 // github.com/T-Prohmpossadhorn/go-core-config. The file should contain a JSON
 // representation of LoggerConfig.
 func InitFromFile(path string) error {
-	cfg, err := config.New[LoggerConfig](path)
+	c, err := config.New(config.WithFilepath(path))
 	if err != nil {
 		return err
 	}
-	return InitWithConfig(*cfg)
+	var cfg LoggerConfig
+	if err := c.Unmarshal(&cfg); err != nil {
+		return err
+	}
+	return InitWithConfig(cfg)
 }
 
 // Init initializes the global logger with default settings (info level, console output, JSON format).
